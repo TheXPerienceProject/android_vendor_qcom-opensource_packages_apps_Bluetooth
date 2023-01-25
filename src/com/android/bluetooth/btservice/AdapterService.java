@@ -47,6 +47,7 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
+ *
  */
 
 /*
@@ -2221,6 +2222,7 @@ public class AdapterService extends Service {
                 receiver.propagateException(e);
             }
         }
+
         public String getIdentityAddress(String address) {
             AdapterService service = getService();
             if (service == null || !callerIsSystemOrActiveUser(TAG, "getIdentityAddress")
@@ -2230,7 +2232,7 @@ public class AdapterService extends Service {
                 return null;
             }
             enforceBluetoothPrivilegedPermission(service);
-            return null;
+            return service.getIdentityAddress(address);
         }
 
         @Override
@@ -4506,7 +4508,8 @@ public class AdapterService extends Service {
         }
 
         int groupId = getGroupId(device);
-        if (deviceProp.isCoordinatedSetMember() || groupId != INVALID_GROUP_ID) {
+        if (deviceProp != null
+                && (deviceProp.isCoordinatedSetMember() || groupId != INVALID_GROUP_ID)) {
             Log.d(TAG, "createBond(): Process Coordinated SetMember");
             if (processGroupMember(groupId, device, remoteOobDatasBundle)) {
                 return true;
@@ -4788,8 +4791,18 @@ public class AdapterService extends Service {
                 if (mA2dpService == null) {
                     Log.e(TAG, "getActiveDevices: A2dpService is null");
                 } else {
-                    activeDevices.add(mA2dpService.getActiveDevice());
-                    Log.i(TAG, "getActiveDevices: A2dp device: " + activeDevices.get(0));
+                    BluetoothDevice defaultValue = null;
+                    if (ApmConstIntf.getQtiLeAudioEnabled()) {
+                        Log.i(TAG, "getQtiLeAudioEnabled() is true, get A2DP active dev from APM");
+                        ActiveDeviceManagerServiceIntf activeDeviceManager =
+                                                   ActiveDeviceManagerServiceIntf.get();
+                        defaultValue = activeDeviceManager.
+                                  getActiveDevice(ApmConstIntf.AudioFeatures.MEDIA_AUDIO);
+                        activeDevices.add(defaultValue);
+                    } else {
+                        activeDevices.add(mA2dpService.getActiveDevice());
+                    }
+                    Log.i(TAG, "getActiveDevices: A2DP device: " + activeDevices.get(0));
                 }
                 break;
             case BluetoothProfile.HEARING_AID:
@@ -5778,6 +5791,15 @@ public class AdapterService extends Service {
      */
     public boolean isBroadcastAudioRxwithEC_3_9() {
         return mAdapterProperties.isBroadcastAudioRxwithEC_3_9();
+    }
+
+    /**
+     * Check whether ISO CIG Parameter calculator enabled.
+     *
+     * @return true if ISO CIG Parameter calculator is enabled
+     */
+    public boolean isISOCIGParameterCalculator() {
+        return mAdapterProperties.isISOCIGParameterCalculator();
     }
 
     /**
@@ -6825,6 +6847,19 @@ public class AdapterService extends Service {
         BluetoothDevice mappingDevice
             = mRemoteDevices.getDevice(deviceProp.getMappingAddr());
         return mappingDevice;
+    }
+
+    public String getIdentityAddress(String address) {
+        BluetoothDevice device =
+                BluetoothAdapter.getDefaultAdapter().getRemoteDevice(address.toUpperCase());
+        BluetoothDevice identityDevice  = getIdentityAddress(device);
+        if (identityDevice == null) {
+            if (DBG) Log.d(TAG, "getIdentityAddress null retruning " + address);
+            return address;
+        }
+        if (DBG) Log.d(TAG, "getIdentityAddress " + address + " - "
+                + identityDevice.getAddress());
+        return identityDevice.getAddress();
     }
 
     public boolean isAdvAudioDevice(BluetoothDevice device) {
