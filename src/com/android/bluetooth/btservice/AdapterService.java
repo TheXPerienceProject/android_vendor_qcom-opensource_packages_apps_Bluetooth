@@ -4833,9 +4833,9 @@ public class AdapterService extends Service {
         }
 
         if (setHeadset && mHeadsetService != null) {
-            if(isQtiLeAudioEnabled || isAospLeaEnabled) {
+            if (isQtiLeAudioEnabled || isAospLeaEnabled) {
                 activeDeviceManager.setActiveDevice(device,
-                        ApmConstIntf.AudioFeatures.CALL_AUDIO, true);
+                                     ApmConstIntf.AudioFeatures.CALL_AUDIO, false);
             } else {
                 Log.i(TAG, "setActiveDevice: Setting active Headset " + device);
                 mHeadsetService.setActiveDevice(device);
