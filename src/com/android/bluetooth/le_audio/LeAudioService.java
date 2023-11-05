@@ -1190,10 +1190,27 @@ public class LeAudioService extends ProfileService {
         }*/
         ActiveDeviceManagerServiceIntf activeDeviceManager =
                                             ActiveDeviceManagerServiceIntf.get();
-        activeDeviceManager.setActiveDevice(device,
-                                            ApmConstIntf.AudioFeatures.CALL_AUDIO);
-        activeDeviceManager.setActiveDevice(device,
-                                            ApmConstIntf.AudioFeatures.MEDIA_AUDIO);
+        if (device == null || ((ApmConst.AudioProfiles.BAP_CALL & VoiceProfID) ==
+                                          ApmConst.AudioProfiles.BAP_CALL)) {
+            if (isInCall) {
+                activeDeviceManager.setActiveDeviceBlocking(device,
+                                                ApmConstIntf.AudioFeatures.CALL_AUDIO);
+            } else {
+                activeDeviceManager.setActiveDevice(device,
+                                             ApmConstIntf.AudioFeatures.CALL_AUDIO);
+            }
+        }
+
+        if (device == null || ((ApmConst.AudioProfiles.BAP_MEDIA & MediaProfID) ==
+                                         ApmConst.AudioProfiles.BAP_MEDIA)) {
+            if (isInCall) {
+                activeDeviceManager.setActiveDeviceBlocking(device,
+                                             ApmConstIntf.AudioFeatures.MEDIA_AUDIO);
+            } else {
+                activeDeviceManager.setActiveDevice(device,
+                                          ApmConstIntf.AudioFeatures.MEDIA_AUDIO);
+            }
+        }
         return true;
     }
 
@@ -1201,9 +1218,16 @@ public class LeAudioService extends ProfileService {
         Log.d(TAG, "setActiveDeviceBlocking() for device: " + device);
         ActiveDeviceManagerServiceIntf activeDeviceManager =
                                             ActiveDeviceManagerServiceIntf.get();
-        activeDeviceManager.setActiveDeviceBlocking(device,
+
+        if (device == null || ((ApmConst.AudioProfiles.BAP_CALL & VoiceProfID) ==
+                                          ApmConst.AudioProfiles.BAP_CALL)) {
+            activeDeviceManager.setActiveDeviceBlocking(device,
                                             ApmConstIntf.AudioFeatures.CALL_AUDIO);
-        activeDeviceManager.setActiveDeviceBlocking(device,
+        }
+
+        if (device == null || ((ApmConst.AudioProfiles.BAP_MEDIA & MediaProfID) ==
+                                                 ApmConst.AudioProfiles.BAP_MEDIA)) {
+            activeDeviceManager.setActiveDeviceBlocking(device,
                                             ApmConstIntf.AudioFeatures.MEDIA_AUDIO);
         return true;
     }
@@ -1236,16 +1260,69 @@ public class LeAudioService extends ProfileService {
 
         ActiveDeviceManagerServiceIntf activeDeviceManager =
                                             ActiveDeviceManagerServiceIntf.get();
-        mActiveAudioOutDevice =
+        BluetoothDevice outDevice = activeDeviceManager.getActiveAbsoluteDevice(ApmConstIntf.AudioFeatures.MEDIA_AUDIO);
+        BluetoothDevice inDevice = activeDeviceManager.getActiveAbsoluteDevice(ApmConstIntf.AudioFeatures.CALL_AUDIO);
+        mActiveAudioOutDevice = null;
+        mActiveAudioInDevice = null;
+        if (outDevice != null &&
+            getConnectionState(outDevice) ==  BluetoothProfile.STATE_CONNECTED)
+            mActiveAudioOutDevice = outDevice;
+        if (inDevice != null &&
+            getConnectionState(inDevice) == BluetoothProfile.STATE_CONNECTED)
+            mActiveAudioInDevice = inDevice;
+/*        mActiveAudioOutDevice =
             activeDeviceManager.getActiveAbsoluteDevice(ApmConstIntf.AudioFeatures.MEDIA_AUDIO);
         mActiveAudioInDevice =
             activeDeviceManager.getActiveAbsoluteDevice(ApmConstIntf.AudioFeatures.CALL_AUDIO);
+*/
+        int ActiveAudioMediaProfile =
+            activeDeviceManager.getActiveProfile(ApmConstIntf.AudioFeatures.MEDIA_AUDIO);
+        int ActiveAudioCallProfile =
+            activeDeviceManager.getActiveProfile(ApmConstIntf.AudioFeatures.CALL_AUDIO);
 
+        /*if (ActiveAudioMediaProfile == ApmConst.AudioProfiles.TMAP_MEDIA ||
+            ActiveAudioMediaProfile == ApmConst.AudioProfiles.BAP_MEDIA ||
+            ActiveAudioMediaProfile == ApmConst.AudioProfiles.BAP_GCP ||
+            ActiveAudioMediaProfile == ApmConst.AudioProfiles.BAP_GCP_VBC ||
+            ActiveAudioCallProfile == ApmConst.AudioProfiles.TMAP_CALL ||
+            ActiveAudioCallProfile == ApmConst.AudioProfiles.BAP_CALL) {
+            if (ActiveAudioCallProfile != ApmConst.AudioProfiles.HFP) {
+                activeDevices.add(0, mActiveAudioOutDevice);
+            }
+        }
+
+        if (ActiveAudioMediaProfile == ApmConst.AudioProfiles.BAP_RECORDING ||
+            ActiveAudioMediaProfile == ApmConst.AudioProfiles.BAP_GCP_VBC ||
+            ActiveAudioCallProfile == ApmConst.AudioProfiles.TMAP_CALL ||
+            ActiveAudioCallProfile == ApmConst.AudioProfiles.BAP_CALL) {
+            if ((ActiveAudioMediaProfile == ApmConst.AudioProfiles.BROADCAST_LE) &&
+                (ActiveAudioCallProfile == ApmConst.AudioProfiles.TMAP_CALL ||
+                 ActiveAudioCallProfile == ApmConst.AudioProfiles.BAP_CALL)) {
+                activeDevices.add(0, mActiveAudioInDevice);
+                activeDevices.add(1, mActiveAudioInDevice);
+            } else {
+                activeDevices.add(1, mActiveAudioInDevice);
+            }
+        }*/
+
+        if ((ActiveAudioMediaProfile == ApmConst.AudioProfiles.BROADCAST_LE) &&
+                (ActiveAudioCallProfile == ApmConst.AudioProfiles.TMAP_CALL ||
+                ActiveAudioCallProfile == ApmConst.AudioProfiles.BAP_CALL)) {
+            mActiveAudioOutDevice = mActiveAudioInDevice;
+        }
         activeDevices.add(0, mActiveAudioOutDevice);
-        activeDevices.add(1, mActiveAudioInDevice);
-
-        Log.d(TAG, "getActiveDevices: LeAudio devices: Out[" + activeDevices.get(0) +
-                                              "] - In[" + activeDevices.get(1) + "]");
+        int activeGid = getGroupId(mActiveAudioOutDevice);
+        if (activeGid < INVALID_SET_ID) {
+            for (BluetoothDevice dev : getGroupDevices(activeGid)) {
+                if (!dev.equals(mActiveAudioOutDevice)) {
+                    activeDevices.add(1, dev);
+                }
+            }
+        } else {
+            activeDevices.add(1, mActiveAudioInDevice);
+        }
+        Log.d(TAG, "getActiveDevices: LeAudio devices: Dev_1[" + activeDevices.get(0) +
+                                              "] - Dev_2[" + activeDevices.get(1) + "]");
 
         return activeDevices;
     }
