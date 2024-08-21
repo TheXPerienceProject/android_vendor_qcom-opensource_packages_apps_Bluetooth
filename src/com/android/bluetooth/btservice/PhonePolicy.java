@@ -575,6 +575,7 @@ class PhonePolicy {
                 }
             }
         }
+
         if ((bcService != null) && ArrayUtils.contains(uuids,
                 BluetoothUuid.BASS) && (bcService.getConnectionPolicy(device)
                 == BluetoothProfile.CONNECTION_POLICY_UNKNOWN)) {
